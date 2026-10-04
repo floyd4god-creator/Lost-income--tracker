@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lost Income">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>Lost Income Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16243A; --paper:#E9EDF2; --sheet:#FFFFFF; --rule:#C9D1DB;
+  --brass:#A8812F; --red:#9E3426; --green:#2C6A4C; --muted:#5B6878;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root{
+  --ink:#E6EBF2; --paper:#0E1726; --sheet:#17233A; --rule:#2C3A52;
+  --brass:#D2AA55; --red:#E0796A; --green:#6BC49A; --muted:#97A3B4;}}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 "Public Sans",system-ui,sans-serif;min-height:100%}
+main{max-width:680px;margin:0 auto;padding:20px 16px 48px}
+h1,.num{font-family:Bitter,Georgia,serif}
+h1{font-size:1.15rem;font-weight:700;margin:4px 0 18px;color:var(--muted)}
+.hero{background:var(--ink);color:var(--paper);border-radius:6px;padding:22px 20px;position:relative;overflow:hidden}
+@media (prefers-color-scheme:dark){.hero{background:#060C17;color:#E6EBF2}}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--brass)}
+.hero p{margin:0}
+.hero .big{font-family:Bitter,serif;font-size:clamp(2.2rem,9vw,3.2rem);font-weight:700;line-height:1.1;margin:4px 0 14px}
+.split{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:.85rem;opacity:.9}
+.split b{display:block;font-family:Bitter,serif;font-size:1.05rem}
+.claim{background:var(--sheet);border-left:6px solid var(--red);border-radius:4px;margin:16px 0;padding:16px 16px 14px}
+.claim.done{border-left-color:var(--green)}
+.claim h2{font-size:1.05rem;margin:0 0 2px;font-family:"Public Sans",sans-serif;font-weight:600}
+.claim .sub{color:var(--muted);font-size:.85rem;margin:0 0 10px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:3px 0}
+.row .num{font-weight:500}
+.row.owed .num{color:var(--red);font-size:1.4rem;font-weight:700}
+.claim.done .row.owed .num{color:var(--green)}
+.bar{height:6px;background:var(--rule);border-radius:3px;margin:10px 0 12px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--green)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:.9rem;border-radius:4px;border:1px solid var(--rule);background:transparent;color:var(--ink);padding:8px 12px;cursor:pointer}
+button.primary{background:var(--brass);border-color:var(--brass);color:#fff;font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+.log{margin:10px 0 0;padding:0;list-style:none;font-size:.85rem;color:var(--muted);border-top:1px dashed var(--rule)}
+.log li{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--rule)}
+.log li button{border:0;padding:0 4px;color:var(--muted)}
+.note{font-size:.85rem;color:var(--muted);margin:6px 0 0;white-space:pre-wrap}
+.bottom{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
+dialog{border:0;border-radius:6px;padding:20px;width:min(92vw,440px);background:var(--sheet);color:var(--ink)}
+dialog::backdrop{background:rgba(5,10,20,.55)}
+dialog h3{margin:0 0 12px;font-family:Bitter,serif}
+label{display:block;font-size:.85rem;color:var(--muted);margin:10px 0 3px}
+input,select,textarea{width:100%;font:inherit;padding:9px 10px;border:1px solid var(--rule);border-radius:4px;background:var(--paper);color:var(--ink)}
+.dacts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Lost income tracker</h1>
+  <section class="hero" aria-live="polite">
+    <p>Still owed to me today</p>
+    <p class="big" id="tOut">$0</p>
+    <div class="split">
+      <div>Owed so far<b id="tOwed">$0</b></div>
+      <div>Received<b id="tRec">$0</b></div>
+      <div>Full term value<b id="tFull">$0</b></div>
+    </div>
+  </section>
+  <div id="list"></div>
+  <div class="bottom">
+    <button class="primary" id="addBtn">Add a claim</button>
+    <button id="expBtn">Save backup</button>
+    <button id="impBtn">Load backup</button>
+    <input type="file" id="impFile" accept="application/json" class="hide">
+  </div>
+</main>
+
+<dialog id="claimDlg">
+  <h3 id="cdTitle">Add a claim</h3>
+  <label for="cName">Name</label><input id="cName" placeholder="e.g. Back pay">
+  <label for="cType">Type</label>
+  <select id="cType"><option value="lump">One amount</option><option value="monthly">Monthly, over a number of years</option></select>
+  <div id="lumpF"><label for="cAmt">Amount owed ($)</label><input id="cAmt" type="number" inputmode="decimal" step="0.01"></div>
+  <div id="monF" class="hide">
+    <label for="cMon">Per month ($)</label><input id="cMon" type="number" inputmode="decimal" step="0.01">
+    <label for="cYrs">Number of years</label><input id="cYrs" type="number" inputmode="numeric">
+    <label for="cStart">Start date (months count from here)</label><input id="cStart" type="date">
+  </div>
+  <label for="cNote">Notes</label><textarea id="cNote" rows="2"></textarea>
+  <div class="dacts"><button id="cDel" class="hide">Delete</button><button id="cCancel">Cancel</button><button class="primary" id="cSave">Save claim</button></div>
+</dialog>
+
+<dialog id="payDlg">
+  <h3>Log money received</h3>
+  <p id="pFor" class="note"></p>
+  <label for="pAmt">Amount received ($)</label><input id="pAmt" type="number" inputmode="decimal" step="0.01">
+  <label for="pDate">Date</label><input id="pDate" type="date">
+  <label for="pNote">Note</label><input id="pNote" placeholder="optional">
+  <div class="dacts"><button id="pCancel">Cancel</button><button class="primary" id="pSave">Log payment</button></div>
+</dialog>
+
+<script>
+const KEY='lostIncomeTracker.v1';
+const $=id=>document.getElementById(id);
+const fmt=n=>'$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const today=()=>new Date().toISOString().slice(0,10);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+let data;
+const defaults={claims:[
+  {id:uid(),name:'Owed, not yet received',type:'lump',amount:3696,note:'',payments:[]},
+  {id:uid(),name:'Lost income',type:'lump',amount:25200,note:'',payments:[]},
+  {id:uid(),name:'Proposed income',type:'monthly',monthly:4000,years:25,start:'',note:'Set the start date to count the months owed so far.',payments:[]},
+  {id:uid(),name:'VA rating at 100%',type:'monthly',monthly:1600,years:25,start:'',note:'Set the start date to count the months owed so far.',payments:[]}
+],ver:2};
+function load(){try{const s=localStorage.getItem(KEY);data=s?JSON.parse(s):structuredClone(defaults)}catch(e){data=structuredClone(defaults)}
+  if(!data.ver||data.ver<2){ // update data saved by the first version
+    data.claims.forEach(c=>{if(c.name==='Monthly lost income')c.name='Proposed income'});
+    if(!data.claims.some(c=>c.name==='VA rating at 100%'))data.claims.push(structuredClone(defaults.claims[3]));
+    data.ver=2;save();
+  }}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+
+function monthsElapsed(start,cap){
+  if(!start)return 0;
+  const s=new Date(start+'T00:00:00'),n=new Date();
+  let m=(n.getFullYear()-s.getFullYear())*12+(n.getMonth()-s.getMonth());
+  if(n.getDate()>=s.getDate())m+=1; // month counts once its date arrives
+  return Math.max(0,Math.min(cap,m));
+}
+function calc(c){
+  const rec=c.payments.reduce((a,p)=>a+Number(p.amount),0);
+  if(c.type==='monthly'){
+    const total=c.years*12, m=monthsElapsed(c.start,total);
+    const owed=m*c.monthly, full=total*c.monthly;
+    return {rec,owed,full,m,total,out:Math.max(0,owed-rec)};
+  }
+  return {rec,owed:c.amount,full:c.amount,out:Math.max(0,c.amount-rec)};
+}
+function render(){
+  let tO=0,tR=0,tF=0;
+  $('list').innerHTML='';
+  data.claims.forEach(c=>{
+    const k=calc(c); tO+=k.owed; tR+=k.rec; tF+=k.full;
+    const done=k.full>0&&k.rec>=k.full;
+    const pct=k.full?Math.min(100,k.rec/k.full*100):0;
+    const el=document.createElement('article');
+    el.className='claim'+(done?' done':'');
+    const sub=c.type==='monthly'
+      ?`${fmt(c.monthly)} a month for ${c.years} years`+(c.start?` · month ${k.m} of ${k.total}`:' · start date not set')
+      :'One amount';
+    el.innerHTML=`<h2></h2><p class="sub">${sub}</p>
+      <div class="row owed"><span>Still owed</span><span class="num">${fmt(k.out)}</span></div>
+      ${c.type==='monthly'?`<div class="row"><span>Owed so far</span><span class="num">${fmt(k.owed)}</span></div>
+      <div class="row"><span>Full ${c.years}-year value</span><span class="num">${fmt(k.full)}</span></div>`:
+      `<div class="row"><span>Amount owed</span><span class="num">${fmt(k.owed)}</span></div>`}
+      <div class="row"><span>Received</span><span class="num">${fmt(k.rec)}</span></div>
+      <div class="bar" aria-label="${pct.toFixed(0)} percent received"><i style="width:${pct}%"></i></div>
+      <div class="acts"><button data-a="pay">Log money received</button><button data-a="edit">Edit</button></div>`;
+    el.querySelector('h2').textContent=c.name;
+    if(c.note){const n=document.createElement('p');n.className='note';n.textContent=c.note;el.querySelector('.bar').before(n)}
+    if(c.payments.length){
+      const ul=document.createElement('ul');ul.className='log';
+      c.payments.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(p=>{
+        const li=document.createElement('li');
+        li.innerHTML=`<span></span><span>${fmt(p.amount)} <button aria-label="Remove payment">✕</button></span>`;
+        li.firstChild.textContent=p.date+(p.note?' — '+p.note:'');
+        li.querySelector('button').onclick=()=>{if(confirm('Remove this payment?')){c.payments=c.payments.filter(x=>x!==p);save();render()}};
+        ul.appendChild(li);
+      });
+      el.appendChild(ul);
+    }
+    el.querySelector('[data-a=pay]').onclick=()=>openPay(c);
+    el.querySelector('[data-a=edit]').onclick=()=>openClaim(c);
+    $('list').appendChild(el);
+  });
+  $('tOut').textContent=fmt(Math.max(0,tO-tR));
+  $('tOwed').textContent=fmt(tO);$('tRec').textContent=fmt(tR);$('tFull').textContent=fmt(tF);
+}
+
+let editing=null;
+function toggleType(){const m=$('cType').value==='monthly';$('lumpF').classList.toggle('hide',m);$('monF').classList.toggle('hide',!m)}
+$('cType').onchange=toggleType;
+function openClaim(c){
+  editing=c||null;
+  $('cdTitle').textContent=c?'Edit claim':'Add a claim';
+  $('cName').value=c?c.name:'';$('cType').value=c?c.type:'lump';
+  $('cAmt').value=c&&c.type==='lump'?c.amount:'';
+  $('cMon').value=c&&c.type==='monthly'?c.monthly:'';
+  $('cYrs').value=c&&c.type==='monthly'?c.years:'';
+  $('cStart').value=c&&c.type==='monthly'?c.start:'';
+  $('cNote').value=c?c.note:'';
+  $('cDel').classList.toggle('hide',!c);
+  toggleType();$('claimDlg').showModal();
+}
+$('cSave').onclick=()=>{
+  const t=$('cType').value,name=$('cName').value.trim()||'Untitled claim';
+  const base={name,type:t,note:$('cNote').value.trim()};
+  if(t==='lump'){const a=parseFloat($('cAmt').value);if(!(a>0))return alert('Enter the amount owed.');base.amount=a}
+  else{const m=parseFloat($('cMon').value),y=parseInt($('cYrs').value);if(!(m>0&&y>0))return alert('Enter the monthly amount and number of years.');base.monthly=m;base.years=y;base.start=$('cStart').value}
+  if(editing){delete editing.amount;delete editing.monthly;delete editing.years;delete editing.start;Object.assign(editing,base)}
+  else data.claims.push({id:uid(),payments:[],...base});
+  save();render();$('claimDlg').close();
+};
+$('cDel').onclick=()=>{if(editing&&confirm('Delete this claim and its payment history?')){data.claims=data.claims.filter(x=>x!==editing);save();render();$('claimDlg').close()}};
+$('cCancel').onclick=()=>$('claimDlg').close();
+$('addBtn').onclick=()=>openClaim();
+
+let paying=null;
+function openPay(c){paying=c;$('pFor').textContent=c.name;$('pAmt').value='';$('pDate').value=today();$('pNote').value='';$('payDlg').showModal()}
+$('pSave').onclick=()=>{const a=parseFloat($('pAmt').value);if(!(a>0))return alert('Enter the amount received.');
+  paying.payments.push({amount:a,date:$('pDate').value||today(),note:$('pNote').value.trim()});save();render();$('payDlg').close()};
+$('pCancel').onclick=()=>$('payDlg').close();
+
+$('expBtn').onclick=()=>{const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='lost-income-backup-'+today()+'.json';a.click()};
+$('impBtn').onclick=()=>$('impFile').click();
+$('impFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.claims))throw 0;if(confirm('Replace current data with this backup?')){data=d;save();render()}}catch(_){alert('That file is not a tracker backup.')}};r.readAsText(f);e.target.value=''};
+
+load();render();
+</script>
+</body>
+</html>
